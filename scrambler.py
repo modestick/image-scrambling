@@ -1,7 +1,8 @@
 import numpy as np
 import cv2
 import random
-import sys
+import argparse
+
 
 def logistic_map_key(s):
     h, w = s[0], s[1]
@@ -37,45 +38,47 @@ def load_image(pic):
     print("Image shape:", img.shape)
     return img
 
+
+def scramble_command(args):
+    img = load_image(args.input)
+    key = logistic_map_key(img.shape)
+    scrambled_img = scram(img, key)
+    cv2.imwrite(args.output, scrambled_img)
+    np.save(args.keyfile, key)
+    print(f"Image scrambled and saved to '{args.output}'. Key saved to '{args.keyfile}'.")
+
+def unscramble_command(args):
+    scrambled_img = load_image(args.input)
+    key = np.load(args.keyfile)
+    restored_img = unscram(scrambled_img, key)
+    cv2.imwrite(args.output, restored_img)
+    print(f"Image unscrambled and saved to '{args.output}'.")
+
+
+
+
 def main():
-    pic = "myPicture.png"
-    img = load_image(pic)
-    lmkey = logistic_map_key(img.shape)
-    s = scram(img, lmkey)
-    us = unscram(s, lmkey)
-    cv2.imwrite("scrambled.png", s)
-    cv2.imwrite("unscrambled.png", us)
-    print("Default scramble/unscramble completed for 'myPicture.png'.")
+    parser = argparse.ArgumentParser(description="Chaotic Image Scrambler")
+
+    subparsers = parser.add_subparsers(required=True)
+
+    
+    scramble_parser = subparsers.add_parser("scramble")
+    scramble_parser.add_argument("input", help="Input image")
+    scramble_parser.add_argument("output", help="Output scrambled image")
+    scramble_parser.add_argument("--keyfile", required=True, help="File to store generated key")
+    scramble_parser.set_defaults(func=scramble_command)
+
+    
+    unscramble_parser = subparsers.add_parser("unscramble")
+    unscramble_parser.add_argument("input", help="Scrambled image")
+    unscramble_parser.add_argument("output", help="Restored image")
+    unscramble_parser.add_argument("--keyfile", required=True,
+                                   help="Key file used during scrambling")
+    unscramble_parser.set_defaults(func=unscramble_command)
+
+    args = parser.parse_args()
+    args.func(args)
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        main()
-    else:
-        cmd = sys.argv[1].lower()
-        if cmd == "scramble":
-            if len(sys.argv) < 3:
-                print("Usage: python script.py scramble <image_path>")
-                sys.exit(1)
-            pic = sys.argv[2]
-            img = load_image(pic)
-            lmkey = logistic_map_key(img.shape)
-            np.save("key.npy", lmkey)
-            s = scram(img, lmkey)
-            cv2.imwrite("scrambled.png", s)
-            print(f"Image '{pic}' scrambled and saved as 'scrambled.png'. Key saved as 'key.npy'.")
-        elif cmd == "unscramble":
-            if len(sys.argv) < 3:
-                print("Usage: python script.py unscramble <image_path>")
-                sys.exit(1)
-            pic = sys.argv[2]
-            img = load_image(pic)
-            try:
-                lmkey = np.load("key.npy")
-            except FileNotFoundError:
-                print("Key file 'key.npy' not found. Cannot unscramble.")
-                sys.exit(1)
-            us = unscram(img, lmkey)
-            cv2.imwrite("unscrambled.png", us)
-            print(f"Image '{pic}' unscrambled and saved as 'unscrambled.png'.")
-        else:
-            print("Invalid argument. Use 'scramble' or 'unscramble' followed by the image filename.")
+    main()
