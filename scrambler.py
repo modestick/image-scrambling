@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import random
 import argparse
-
+import sys
 
 def logistic_map_key(s):
     h, w = s[0], s[1]
