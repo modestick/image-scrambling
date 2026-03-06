@@ -2,8 +2,8 @@ import numpy as np
 import cv2
 import random
 import argparse
-import sys
 import os
+import sys
 
 
 def logistic_map_key(s):
@@ -44,6 +44,19 @@ def load_image(pic):
     return img
 
 
+def verify(og_image, unscrambled_image):
+    if og_image.shape != unscrambled_image.shape:
+        print("FAILURE: Image shapes do not match.")
+        return
+    diff = og_image - unscrambled_image
+    abs_diff = np.abs(diff)
+    total = np.sum(abs_diff)
+    if total == 0:
+        print("VERIFICATION SUCCESS")
+    else:
+        print("VERIFICATION FAILURE")
+
+
 def scramble_command(args):
     if os.path.isdir(args.input):
         os.makedirs(args.output, exist_ok=True)
@@ -75,6 +88,9 @@ def scramble_command(args):
 
 def unscramble_command(args):
     if os.path.isdir(args.input):
+        if args.verify:
+            print("Error: --verify option is ignored in directory mode.")
+            sys.exit(1)
         os.makedirs(args.output, exist_ok=True)
         for filename in os.listdir(args.input):
             if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
@@ -95,6 +111,7 @@ def unscramble_command(args):
                 restored_img = unscram(scrambled_img, key)
                 cv2.imwrite(output_path, restored_img)
                 print(f"Image '{filename}' unscrambled and saved to '{output_path}'.")
+            
     else:
         if args.keyfile is None:
             print("Error: --keyfile is required when unscrambling a single file.")
@@ -104,6 +121,10 @@ def unscramble_command(args):
         restored_img = unscram(scrambled_img, key)
         cv2.imwrite(args.output, restored_img)
         print(f"Image unscrambled and saved to '{args.output}'.")
+
+        if args.verify:
+            original_img = load_image(args.verify)
+            verify(original_img, restored_img)
 
 
 def main():
@@ -120,6 +141,7 @@ def main():
     unscramble_parser.add_argument("input", help="Scrambled image or directory of scrambled images")
     unscramble_parser.add_argument("output", help="Restored image or directory")
     unscramble_parser.add_argument("--keyfile", help="Key file (single file mode only; auto-located in directory mode)")
+    unscramble_parser.add_argument("--verify", help="Verify that unscrambled image matches original")
     unscramble_parser.set_defaults(func=unscramble_command)
 
     args = parser.parse_args()
