@@ -52,9 +52,9 @@ def verify(og_image, unscrambled_image):
     abs_diff = np.abs(diff)
     total = np.sum(abs_diff)
     if total == 0:
-        print("VERIFICATION SUCCESS")
+        print(f"VERIFICATION SUCCESS - Total pixel difference: {total}")
     else:
-        print("VERIFICATION FAILURE")
+        print(f"VERIFICATION FAILURE - Total pixel difference: {total}")
 
 
 def scramble_command(args):
@@ -88,19 +88,17 @@ def scramble_command(args):
 
 def unscramble_command(args):
     if os.path.isdir(args.input):
-        if args.verify:
-            print("Error: --verify option is ignored in directory mode.")
-            sys.exit(1)
+
         os.makedirs(args.output, exist_ok=True)
         for filename in os.listdir(args.input):
             if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
-                input_path = os.path.join(args.input, filename)
-                basename = os.path.splitext(filename)[0]
-                output_path = os.path.join(args.output, f"restored_{basename}.png")
                 if filename.startswith("scrambled_"):
                     original_name = filename[len("scrambled_"):]
                 else:
                     original_name = filename
+                input_path = os.path.join(args.input, filename)
+                basename = os.path.splitext(original_name)[0]
+                output_path = os.path.join(args.output, f"restored_{basename}.png")
                 original_basename = os.path.splitext(original_name)[0]
                 keyfile_path = os.path.join(args.input, f"key_{original_basename}.npy")
                 if not os.path.exists(keyfile_path):
@@ -111,7 +109,19 @@ def unscramble_command(args):
                 restored_img = unscram(scrambled_img, key)
                 cv2.imwrite(output_path, restored_img)
                 print(f"Image '{filename}' unscrambled and saved to '{output_path}'.")
-            
+                if args.verify:
+                    match = None
+                    for verify_file in os.listdir(args.verify):
+                        if os.path.splitext(verify_file)[0] == basename:
+                            match = verify_file
+                            break
+                    if match:
+                        original_path = os.path.join(args.verify, match)
+                        original_img = load_image(original_path)
+                        verify(original_img, restored_img)
+                    else:
+                        print(f"Original for '{filename}' not found in verify directory.")
+                
     else:
         if args.keyfile is None:
             print("Error: --keyfile is required when unscrambling a single file.")
